@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+      /* Gunakan CSS yang sama dengan Index, ditambah style khusus Form */
+      :root { --blue: #0d47a1; --light: #f4f7f6; --yellow: #ffca28; --white: #fff; }
+      body { font-family: 'Poppins', sans-serif; background: var(--light); margin: 0; color: #333; }
+      
+      .header { background: #1565c0; color: var(--white); padding: 30px 20px 80px; text-align: center; border-radius: 0 0 30px 30px; }
+      .container { max-width: 800px; margin: -70px auto 20px; padding: 0 15px; }
+
+      /* FORM INPUT CARD */
+      .form-card {
+        background: var(--white);
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+      }
+      .form-title { margin-top:0; color: var(--blue); border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+      
+      .form-group { margin-bottom: 15px; }
+      .form-group label { display: block; font-size: 0.9em; margin-bottom: 5px; font-weight: 600; color: #555;}
+      .form-row { display: flex; gap: 15px; }
+      
+      input, select, button { 
+        width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; 
+        font-family: inherit; font-size: 14px; box-sizing: border-box;
+      }
+      input:focus, select:focus { outline: none; border-color: var(--blue); }
+      
+      button.btn-save { background: var(--blue); color: #fff; font-size: 16px; transition: 0.3s; }
+      button.btn-save:hover { background: #002171; }
+
+      /* Visualisasi List Mini (Copy dari Index style) */
+      .mini-dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+      .card { background: var(--white); padding: 10px; border-radius: 10px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+      .card h3 { margin: 0; font-size: 0.7rem; }
+      .card p { margin: 5px 0 0; font-size: 0.9rem; font-weight: bold; color: var(--blue); }
+      
+      .item { background: var(--white); padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; border-left: 4px solid #ccc; font-size: 0.9em; }
+      .item.in { border-left-color: #4caf50; } .item.out { border-left-color: #f44336; }
+      .nominal.in { color: #4caf50; } .nominal.out { color: #f44336; }
+
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h2><i class="fas fa-user-cog"></i> Halaman Admin</h2>
+      <p>Input & Kelola Transaksi</p>
+    </div>
+
+    <div class="container">
+      
+      <div class="form-card">
+        <h3 class="form-title">Tambah Transaksi Baru</h3>
+        <form id="transaksiForm" onsubmit="handleFormSubmit(event)">
+          
+          <div class="form-row">
+            <div class="form-group" style="flex:1">
+              <label>Tanggal</label>
+              <input type="date" name="tgl" required>
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>Jenis</label>
+              <select name="jenis" required>
+                <option value="Pemasukan">Pemasukan (+)</option>
+                <option value="Pengeluaran">Pengeluaran (-)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Keterangan</label>
+            <input type="text" name="ket" placeholder="Contoh: Bayar Listrik" required>
+          </div>
+
+          <div class="form-group">
+            <label>Nominal (Rp)</label>
+            <input type="number" name="nom" placeholder="0" required min="1">
+          </div>
+
+          <button type="submit" class="btn-save" id="btn-simpan">
+            <i class="fas fa-save"></i> Simpan Transaksi
+          </button>
+        </form>
+      </div>
+
+      <h4 style="margin-bottom:10px; color:#555;">Ringkasan Bulan Ini</h4>
+      <div class="mini-dashboard">
+        <div class="card"><h3>Masuk</h3><p id="t-masuk">0</p></div>
+        <div class="card"><h3>Keluar</h3><p id="t-keluar">0</p></div>
+        <div class="card"><h3>Saldo</h3><p id="t-saldo">0</p></div>
+      </div>
+      <div id="list-data"></div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+      // Set Default Tanggal Hari Ini
+      document.querySelector('input[type="date"]').valueAsDate = new Date();
+
+      // Load Data Awal
+      window.onload = loadData;
+
+      function handleFormSubmit(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btn-simpan');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+        btn.disabled = true;
+
+        google.script.run.withSuccessHandler(() => {
+          // Reset Form
+          document.getElementById('transaksiForm').reset();
+          document.querySelector('input[type="date"]').valueAsDate = new Date();
+          
+          // Notifikasi Sukses
+          Swal.fire({
+            icon: 'success',
+            title: 'Berhasil!',
+            text: 'Data transaksi telah disimpan.',
+            timer: 1500,
+            showConfirmButton: false
+          });
+          
+          // Refresh Data Bawah
+          loadData();
+          btn.innerHTML = '<i class="fas fa-save"></i> Simpan Transaksi';
+          btn.disabled = false;
+        }).tambahTransaksi(document.getElementById('transaksiForm'));
+      }
+
+      function loadData() {
+        google.script.run.withSuccessHandler(render).getDataKas();
+      }
+
+      function formatRupiah(n) { return new Intl.NumberFormat('id-ID', {style:'currency', currency:'IDR'}).format(n); }
+
+      function render(data) {
+        const container = document.getElementById('list-data');
+        container.innerHTML = '';
+        
+        let m=0, k=0;
+        const now = new Date();
+        const curYM = now.toISOString().slice(0, 7); // Filter otomatis bulan ini untuk admin view
+
+        const filtered = data.filter(d => {
+           let date = new Date(d.tanggal);
+           let ym = date.getFullYear() + '-' + String(date.getMonth()+1).padStart(2,'0');
+           return ym === curYM;
+        });
+
+        // Hitung & Render
+        filtered.slice().reverse().forEach(d => {
+          const isMasuk = d.jenis == 'Pemasukan';
+          const val = Number(d.nominal);
+          if(isMasuk) m += val; else k += val;
+          
+          container.innerHTML += `
+            <div class="item ${isMasuk?'in':'out'}">
+              <div style="flex:1"><b>${d.keterangan}</b></div>
+              <div class="nominal ${isMasuk?'in':'out'}">${formatRupiah(val)}</div>
+            </div>`;
+        });
+
+        document.getElementById('t-masuk').innerText = formatRupiah(m);
+        document.getElementById('t-keluar').innerText = formatRupiah(k);
+        document.getElementById('t-saldo').innerText = formatRupiah(m-k);
+      }
+    </script>
+  </body>
+</html>
